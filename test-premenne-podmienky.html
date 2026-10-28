@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Premenné a podmienky</title>
+<style>
+  :root {
+    --bg: #eef2f3;
+    --card: #ffffff;
+    --ink: #13252b;
+    --muted: #5a6b70;
+    --dark: #0d2b33;
+    --accent: #0f6b74;
+    --accent-soft: #e2f0f1;
+    --line: #d8e1e3;
+    --code-bg: #0f2a31;
+    --code-ink: #e6f1f2;
+    --ok: #1d7a3e;
+    --ok-soft: #e5f4ea;
+    --bad: #b4232c;
+    --bad-soft: #fbe9ea;
+    --mono: Consolas, "SFMono-Regular", Menlo, "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.45;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+
+  header.hero {
+    background: linear-gradient(120deg, #0b2229, #0f4f58 70%, #137a84);
+    color: #fff;
+    padding: 36px 0 28px;
+  }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; opacity: .75; }
+  .hero h1 { margin: 6px 0 10px; font-size: clamp(26px, 5vw, 38px); line-height: 1.15; }
+  .hero p { margin: 0; max-width: 620px; opacity: .9; }
+  .stats { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.18); }
+  .stats b { display: block; font-size: 22px; }
+  .stats span { font-family: var(--mono); font-size: 12px; opacity: .75; }
+
+  .start-card { margin-top: 24px; display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .field label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; opacity: .75; margin-bottom: 4px; }
+  .field input {
+    width: 100%; background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,.5);
+    color: #fff; font-size: 16px; padding: 6px 2px; outline: none;
+  }
+  .field input:focus { border-bottom-color: #fff; }
+  .field input:disabled { opacity: .8; }
+
+  .bar {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(255,255,255,.97);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar .wrap { display: flex; align-items: center; gap: 14px; padding-top: 10px; padding-bottom: 10px; }
+  .timer { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--accent); min-width: 72px; }
+  .timer.low { color: var(--bad); }
+  .progress { flex: 1; display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .track { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .fill { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .leaves-bar { font-family: var(--mono); font-size: 12px; color: var(--bad); }
+
+  button {
+    font: inherit; font-weight: 600; border: none; border-radius: 8px;
+    padding: 10px 18px; cursor: pointer; background: var(--accent); color: #fff;
+  }
+  button:hover { filter: brightness(1.1); }
+  button.big { font-size: 17px; padding: 13px 26px; }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+
+  main { padding: 24px 0 40px; }
+  .intro-card, .result {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px; margin-bottom: 24px;
+  }
+  .intro-card ul { margin: 8px 0 18px; padding-left: 20px; }
+  .intro-card li { margin-bottom: 4px; }
+  .msg { color: var(--bad); font-size: 14px; margin-top: 10px; min-height: 1em; }
+
+  .result { text-align: center; border-color: var(--accent); }
+  .result .score { font-size: clamp(44px, 10vw, 64px); font-weight: 800; color: var(--accent); line-height: 1.1; margin-top: 6px; }
+  .result .who { color: var(--muted); font-family: var(--mono); font-size: 13px; margin-top: 8px; }
+  .result .note { margin-top: 12px; }
+  .result .leaves { display: inline-block; margin-top: 12px; font-family: var(--mono); font-size: 14px; padding: 6px 12px; border-radius: 8px; background: var(--accent-soft); }
+  .result .leaves.bad { background: var(--bad-soft); color: var(--bad); }
+  .legend { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-top: 14px; font-size: 14px; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .legend .l-ok::before { background: var(--ok); }
+  .legend .l-bad::before { background: var(--bad); }
+
+  #quiz { user-select: none; -webkit-user-select: none; }
+  #quiz input { user-select: text; -webkit-user-select: text; }
+
+  section.sec { margin-bottom: 32px; }
+  .sec-head { display: flex; align-items: baseline; gap: 10px; border-bottom: 2px solid var(--dark); padding-bottom: 6px; }
+  .sec-head .letter { font-family: var(--mono); font-weight: 700; color: var(--accent); }
+  .sec-head h2 { margin: 0; font-size: 20px; flex: 1; }
+  .sec-head .cnt { font-family: var(--mono); font-size: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 1px 8px; color: var(--muted); }
+  .sec-desc { color: var(--muted); font-size: 14px; margin: 8px 0 14px; }
+
+  .q {
+    background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--line);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+  }
+  .q.answered { border-left-color: var(--accent); }
+  .q.ok { border-left-color: var(--ok); }
+  .q.bad { border-left-color: var(--bad); }
+  .q-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 10px; }
+  .num { font-family: var(--mono); font-size: 12px; font-weight: 700; background: var(--accent-soft); color: var(--accent); border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
+  .q.ok .num { background: var(--ok-soft); color: var(--ok); }
+  .q.bad .num { background: var(--bad-soft); color: var(--bad); }
+  .q-title { font-weight: 600; flex: 1; }
+  .mark { font-family: var(--mono); font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .q.ok .mark { color: var(--ok); }
+  .q.bad .mark { color: var(--bad); }
+
+  pre.code {
+    margin: 0; background: var(--code-bg); color: var(--code-ink); border-radius: 8px;
+    padding: 12px 14px; font-family: var(--mono); font-size: 14px; line-height: 1.55;
+    overflow-x: auto; white-space: pre;
+  }
+  pre.code input {
+    font-family: var(--mono); font-size: 14px; width: 9.5em;
+    background: #1f4a54; color: #fff; border: 1px dashed #7fb7bd; border-radius: 4px;
+    padding: 1px 6px; outline: none; text-align: center;
+  }
+  pre.code input:focus { border-style: solid; border-color: #bfe6ea; }
+  .q.bad pre.code input { background: #5a1e24; border-color: #e48a91; text-decoration: line-through; }
+  .q.ok pre.code input { background: #1d4a2e; border-color: #7fcf98; }
+
+  .out-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 12px; align-items: start; }
+  .out-label { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; color: var(--muted); margin-bottom: 4px; }
+  .out-grid input {
+    width: 100%; font-family: var(--mono); font-size: 15px; padding: 9px 10px;
+    border: 1px solid var(--line); border-radius: 6px; background: #f6f9f9; outline: none;
+  }
+  .out-grid input:focus { border-color: var(--accent); background: #fff; }
+  .q.ok .out-grid input { border-color: var(--ok); background: var(--ok-soft); }
+  .q.bad .out-grid input { border-color: var(--bad); background: var(--bad-soft); text-decoration: line-through; }
+
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    display: flex; gap: 10px; align-items: flex-start; background: #f4f7f7; border: 1px solid transparent;
+    border-radius: 8px; padding: 9px 12px; cursor: pointer;
+  }
+  .opt:hover { border-color: var(--line); }
+  .opt input { margin-top: 4px; accent-color: var(--accent); }
+  .opt.sel { background: var(--accent-soft); border-color: var(--accent); }
+  .opt.is-correct { background: var(--ok-soft); border-color: var(--ok); }
+  .opt.sel.is-wrong { background: var(--bad-soft); border-color: var(--bad); text-decoration: line-through; }
+
+  .correct {
+    margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: var(--ok-soft); color: var(--ok); font-size: 14px;
+  }
+  .correct.noans { background: var(--bad-soft); color: var(--bad); font-style: italic; }
+  .correct code { font-family: var(--mono); font-size: 14px; font-weight: 700; color: #145a2d; white-space: pre-wrap; }
+  .correct .empty { color: var(--muted); font-style: italic; }
+
+  input:disabled { opacity: 1; cursor: default; color: inherit; -webkit-text-fill-color: currentColor; }
+  .finish { text-align: center; padding: 10px 0 20px; }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 100; background: rgba(8, 24, 29, .82);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .overlay .box { background: #fff; border-radius: 14px; max-width: 460px; width: 100%; padding: 24px; text-align: center; }
+  .overlay h3 { margin: 0 0 8px; font-size: 21px; }
+  .overlay p { margin: 0 0 18px; color: var(--muted); }
+  .overlay.warn h3 { color: var(--bad); }
+  .overlay .btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+  footer { text-align: center; font-family: var(--mono); font-size: 12px; color: var(--muted); padding: 20px 0 40px; }
+  .hidden { display: none !important; }
+
+  @media (max-width: 640px) {
+    .start-card { grid-template-columns: 1fr; }
+    .out-grid { grid-template-columns: 1fr; }
+    .stats { gap: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Programovanie · Python</div>
+    <h1>Opakovanie: premenné a podmienky</h1>
+    <p>Krátky test na zopakovanie premenných, dátových typov, operátorov a podmienok if / elif / else.</p>
+    <div class="stats">
+      <div><b id="st-q">20</b><span>otázok</span></div>
+      <div><b id="st-p">20</b><span>bodov</span></div>
+      <div><b id="st-min">20</b><span>minút</span></div>
+    </div>
+    <div class="start-card">
+      <div class="field"><label for="meno">Meno a priezvisko</label><input id="meno" autocomplete="off"></div>
+      <div class="field"><label for="trieda">Trieda</label><input id="trieda" autocomplete="off"></div>
+    </div>
+  </div>
+</header>
+
+<div class="bar hidden" id="bar">
+  <div class="wrap">
+    <div class="timer" id="timer">20:00</div>
+    <div class="progress"><span id="prog-txt">0 / 20</span><div class="track"><div class="fill" id="prog-fill"></div></div></div>
+    <span class="leaves-bar" id="leaves-bar"></span>
+    <button id="btn-finish-top">Odovzdať</button>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="intro-card" id="intro">
+    <h2 style="margin-top:0">Pravidlá testu</h2>
+    <ul id="rules"></ul>
+    <button class="big" id="btn-start">Začať test</button>
+    <div class="msg" id="start-msg"></div>
+  </div>
+
+  <div class="result hidden" id="result">
+    <div class="eyebrow" style="color:var(--muted)">Výsledok</div>
+    <div class="score" id="res-score">0 / 20</div>
+    <div class="who" id="res-who"></div>
+    <div class="leaves" id="res-leaves"></div>
+    <div class="note" id="res-note"></div>
+    <div class="legend"><span class="l-ok">správne</span><span class="l-bad">nesprávne</span></div>
+  </div>
+
+  <div id="quiz" class="hidden"></div>
+
+  <div class="finish hidden" id="finish-wrap">
+    <button class="big" id="btn-finish">Odovzdať test</button>
+  </div>
+</main>
+
+<div class="overlay hidden" id="overlay">
+  <div class="box">
+    <h3 id="ov-title"></h3>
+    <p id="ov-text"></p>
+    <div class="btns" id="ov-btns"></div>
+  </div>
+</div>
+
+<footer>Spojená škola Nižná · Programovanie</footer>
+
+<script>
+/* ===== NASTAVENIA TESTU (môžete upraviť) ===== */
+const CONFIG = {
+  limitMin: 20,     // čas na test v minútach
+  maxLeaves: 0      // pri koľkom opustení stránky sa test odovzdá (0 = len sa zaznamená)
+};
+/* ============================================= */
+
+const DATA = {"salt": "ssn-premenne-2026", "sections": [{"id": "A", "title": "Čo program vypíše", "desc": "Ku každému programu napíš presne to, čo sa zobrazí na obrazovke. Na veľkých a malých písmenách záleží, medzery na začiatku a na konci sa nepočítajú.", "count": 14}, {"id": "B", "title": "Doplň do kódu", "desc": "Do políčka patrí jedno slovo alebo operátor.", "count": 4}, {"id": "C", "title": "Teória", "desc": "Vyber jednu správnu možnosť.", "count": 2}], "questions": [{"id": "q1", "n": 1, "sec": "A", "kind": "out", "prompt": "", "code": "x = 5\nx = x + 3\nprint(x)", "mode": "out", "h": ["35ba6649"]}, {"id": "q2", "n": 2, "sec": "A", "kind": "out", "prompt": "", "code": "a = 10\nb = a\na = 20\nprint(b)", "mode": "out", "h": ["7750b789"]}, {"id": "q3", "n": 3, "sec": "A", "kind": "out", "prompt": "", "code": "x = 7\nx += 2\nx *= 3\nprint(x)", "mode": "out", "h": ["15a90f82"]}, {"id": "q4", "n": 4, "sec": "A", "kind": "out", "prompt": "", "code": "meno = \"Ana\"\nprint(type(meno))", "mode": "code", "h": ["1ead70ab"]}, {"id": "q5", "n": 5, "sec": "A", "kind": "out", "prompt": "", "code": "print(int(\"12\") + 3)", "mode": "out", "h": ["542af81d"]}, {"id": "q6", "n": 6, "sec": "A", "kind": "out", "prompt": "", "code": "print(\"12\" + \"3\")", "mode": "out", "h": ["8a83547c"]}, {"id": "q7", "n": 7, "sec": "A", "kind": "out", "prompt": "", "code": "x = 4\nif x % 2 == 0:\n    print(\"párne\")\nelse:\n    print(\"nepárne\")", "mode": "out", "h": ["22997e7d"]}, {"id": "q8", "n": 8, "sec": "A", "kind": "out", "prompt": "", "code": "body = 65\nif body >= 90:\n    print(\"A\")\nelif body >= 75:\n    print(\"B\")\nelif body >= 50:\n    print(\"C\")\nelse:\n    print(\"D\")", "mode": "out", "h": ["54f4d4c3"]}, {"id": "q9", "n": 9, "sec": "A", "kind": "out", "prompt": "", "code": "a = 3\nb = 8\nif a > 5 or b > 5:\n    print(\"áno\")\nelse:\n    print(\"nie\")", "mode": "out", "h": ["69dd1575"]}, {"id": "q10", "n": 10, "sec": "A", "kind": "out", "prompt": "", "code": "x = 10\nif not x > 5:\n    print(\"A\")\nelse:\n    print(\"B\")", "mode": "out", "h": ["83eb0721"]}, {"id": "q11", "n": 11, "sec": "A", "kind": "out", "prompt": "", "code": "vek = 15\nif vek >= 18 and vek < 65:\n    print(\"dospelý\")\nelif vek < 18:\n    print(\"mladistvý\")\nelse:\n    print(\"dôchodca\")", "mode": "out", "h": ["b9b27bc1"]}, {"id": "q12", "n": 12, "sec": "A", "kind": "out", "prompt": "", "code": "print(5 == 5.0)", "mode": "out", "h": ["43297247"]}, {"id": "q13", "n": 13, "sec": "A", "kind": "out", "prompt": "", "code": "print(3 != 3)", "mode": "out", "h": ["f9930ed1"]}, {"id": "q14", "n": 14, "sec": "A", "kind": "out", "prompt": "", "code": "x = 0\nif x:\n    print(\"pravda\")\nelse:\n    print(\"nepravda\")", "mode": "out", "h": ["ea9e5376"]}, {"id": "q15", "n": 15, "sec": "B", "kind": "fill", "prompt": "Program má od používateľa načítať desatinné číslo.", "code": "cislo = @@(input(\"Zadaj číslo: \"))", "mode": "code", "h": ["f8d67266"]}, {"id": "q16", "n": 16, "sec": "B", "kind": "fill", "prompt": "Riadok pod podmienkou sa má vykonať, keď má x hodnotu 10.", "code": "if x @@ 10:", "mode": "code", "h": ["f64b5c81"]}, {"id": "q17", "n": 17, "sec": "B", "kind": "fill", "prompt": "Druhá podmienka sa má overiť len vtedy, keď prvá neplatí.", "code": "if x > 10:\n    print(\"veľké\")\n@@ x > 5:\n    print(\"stredné\")", "mode": "code", "h": ["af00a204"]}, {"id": "q18", "n": 18, "sec": "B", "kind": "fill", "prompt": "Riadok pod podmienkou sa má vykonať, keď je x deliteľné tromi.", "code": "if x @@ 3 == 0:", "mode": "code", "h": ["fe23813c"]}, {"id": "q19", "n": 19, "sec": "C", "kind": "mc", "prompt": "Ktorý názov premennej je v Pythone neplatný?", "code": null, "mode": "out", "h": ["28ca3d9e"], "options": ["moje_cislo", "cislo2", "2cislo", "_pocet"]}, {"id": "q20", "n": 20, "sec": "C", "kind": "mc", "prompt": "Aký je rozdiel medzi = a == ?", "code": null, "mode": "out", "h": ["585d3d6e"], "options": ["nie je medzi nimi rozdiel", "= priraďuje hodnotu, == porovnáva dve hodnoty", "= porovnáva dve hodnoty, == priraďuje hodnotu", "== sa používa len pri reťazcoch"]}]};
+const KEY = "py-premenne-podmienky-v1";
+
+//<core>
+function norm(s, mode) {
+  s = String(s).normalize("NFD").replace(/[̀-ͯ]/g, "");
+  s = s.replace(/[“”„"‚‘’`]/g, "'");
+  if (mode === "code") {
+    s = s.replace(/\s+/g, "");
+    s = s.replace(/^'+|'+$/g, "");
+    return s;
+  }
+  s = s.trim().replace(/\s+/g, " ");
+  if (mode === "word") s = s.toLowerCase();
+  return s;
+}
+function fnv(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16);
+}
+function check(q, val) {
+  if (val == null || String(val).trim() === "") return false;
+  return q.h.includes(fnv(DATA.salt + "|" + q.id + "|" + norm(val, q.mode)));
+}
+//</core>
+
+const $ = (id) => document.getElementById(id);
+let state = { meno: "", trieda: "", start: null, answers: {}, done: false, score: null, leaves: 0, awayMs: 0, reason: "" };
+
+function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) state = Object.assign(state, s); } catch (e) {} }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const running = () => state.start && !state.done;
+
+function rules() {
+  const r = [
+    `Na test máš <b>${CONFIG.limitMin} minút</b>. Čas beží od kliknutia na <i>Začať test</i> a po jeho uplynutí sa test odovzdá sám.`,
+    `Všetky otázky vidíš naraz a môžeš sa k nim vracať až do odovzdania.`,
+    `Každé <b>opustenie stránky</b> (iná karta, okno, aplikácia) sa zaznamená a uvidí ho vyučujúci.`,
+    CONFIG.maxLeaves ? `Pri <b>${CONFIG.maxLeaves}. opustení</b> sa test automaticky odovzdá.` : null,
+    `Pri výstupoch programu píš presne to, čo sa zobrazí. Na veľkých a malých písmenách záleží.`,
+    `Každá otázka má 1 bod. Po odovzdaní uvidíš počet bodov a ktoré otázky máš správne a ktoré nesprávne.`
+  ].filter(Boolean);
+  $("rules").innerHTML = r.map(x => `<li>${x}</li>`).join("");
+  $("st-min").textContent = CONFIG.limitMin;
+}
+
+function render(review) {
+  let html = "";
+  DATA.sections.forEach(sec => {
+    html += `<section class="sec"><div class="sec-head"><span class="letter">${sec.id}</span><h2>${esc(sec.title)}</h2><span class="cnt">${sec.count} b</span></div><p class="sec-desc">${esc(sec.desc)}</p>`;
+    DATA.questions.filter(q => q.sec === sec.id).forEach(q => {
+      let cls = "", mark = "";
+      if (review) {
+        const ok = check(q, state.answers[q.id]);
+        cls = ok ? " ok" : " bad";
+        mark = `<span class="mark">${ok ? "✔ 1 b" : "✘ 0 b"}</span>`;
+      }
+      html += `<div class="q${cls}" id="box-${q.id}"><div class="q-head"><span class="num">${q.n}</span><span class="q-title">${q.prompt ? esc(q.prompt) : ""}</span>${mark}</div>`;
+      if (q.kind === "out") {
+        html += `<div class="out-grid"><pre class="code">${esc(q.code)}</pre><div><div class="out-label">VÝSTUP</div><input data-q="${q.id}" spellcheck="false" autocomplete="off"></div></div>`;
+      } else if (q.kind === "fill") {
+        const p = q.code.split("@@");
+        html += `<pre class="code">${esc(p[0])}<input data-q="${q.id}" spellcheck="false" autocomplete="off">${esc(p[1])}</pre>`;
+      } else if (q.kind === "mc") {
+        if (q.code) html += `<pre class="code" style="margin-bottom:10px">${esc(q.code)}</pre>`;
+        const opts = review ? q.options.slice() : shuffle(q.options.slice());
+        const okSel = review && check(q, state.answers[q.id]);
+        html += `<div class="opts">` + opts.map(o => {
+          const c = review && state.answers[q.id] === o ? (okSel ? " is-correct" : " is-wrong") : "";
+          return `<label class="opt${c}"><input type="radio" name="${q.id}" value="${esc(o)}" data-q="${q.id}"><span>${esc(o)}</span></label>`;
+        }).join("") + `</div>`;
+      }
+      if (review && cls === " bad" && !(state.answers[q.id] && String(state.answers[q.id]).trim())) {
+        html += `<div class="correct noans">Bez odpovede</div>`;
+      }
+      html += `</div>`;
+    });
+    html += `</section>`;
+  });
+  const quiz = $("quiz");
+  quiz.innerHTML = html;
+
+  quiz.querySelectorAll("input[data-q]").forEach(inp => {
+    const id = inp.dataset.q;
+    if (inp.type === "radio") {
+      if (state.answers[id] === inp.value) { inp.checked = true; inp.closest(".opt").classList.add("sel"); }
+      inp.addEventListener("change", () => {
+        state.answers[id] = inp.value;
+        quiz.querySelectorAll(`input[name="${id}"]`).forEach(r => r.closest(".opt").classList.toggle("sel", r.checked));
+        changed();
+      });
+    } else {
+      inp.value = state.answers[id] || "";
+      fit(inp);
+      inp.addEventListener("input", () => { state.answers[id] = inp.value; fit(inp); changed(); });
+    }
+    if (review) inp.disabled = true;
+  });
+  updateProgress();
+}
+
+function fit(inp) { if (inp.closest("pre")) inp.style.width = Math.max(6, inp.value.length + 2) + "ch"; }
+function changed() { save(); updateProgress(); }
+
+function updateProgress() {
+  let n = 0;
+  DATA.questions.forEach(q => {
+    const a = state.answers[q.id];
+    const ok = a != null && String(a).trim() !== "";
+    if (ok) n++;
+    const box = $("box-" + q.id);
+    if (box && !state.done) box.classList.toggle("answered", ok);
+  });
+  $("prog-txt").textContent = `${n} / ${DATA.questions.length}`;
+  $("prog-fill").style.width = (100 * n / DATA.questions.length) + "%";
+}
+
+/* ---------- časovač ---------- */
+let tick = null;
+function startTimer() {
+  clearInterval(tick);
+  const step = () => {
+    if (!running()) return;
+    const left = Math.max(0, CONFIG.limitMin * 60 - Math.floor((Date.now() - state.start) / 1000));
+    $("timer").textContent = `${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
+    $("timer").classList.toggle("low", left <= 180);
+    if (left <= 0) finish("time");
+  };
+  step();
+  tick = setInterval(step, 500);
+}
+
+/* ---------- opustenie stránky ---------- */
+let away = null, unloading = false;
+window.addEventListener("pagehide", () => { unloading = true; });
+function goAway() {
+  if (!running() || away || unloading) return;
+  away = Date.now();
+  state.leaves++; save(); updateLeaves();
+  if (CONFIG.maxLeaves && state.leaves >= CONFIG.maxLeaves) finish("leaves");
+}
+function comeBack() {
+  if (!away) return;
+  state.awayMs += Date.now() - away; away = null; save();
+  if (running()) warn("Opustil si test");
+}
+function warn(title) {
+  const left = CONFIG.maxLeaves ? CONFIG.maxLeaves - state.leaves : null;
+  const txt = `Opustil si stránku testu (${state.leaves}×). Vyučujúci to uvidí pri výsledku.` +
+    (left ? ` Ak stránku opustíš ešte ${left}×, test sa automaticky odovzdá.` : "");
+  ask(title, txt, [{ t: "Pokračovať v teste", fn: closeOverlay }], true);
+}
+function updateLeaves() { $("leaves-bar").textContent = state.leaves ? `Opustenie: ${state.leaves}×` : ""; }
+
+document.addEventListener("visibilitychange", () => { document.hidden ? goAway() : comeBack(); });
+window.addEventListener("blur", () => goAway());
+window.addEventListener("focus", () => comeBack());
+window.addEventListener("beforeunload", e => { if (running()) { e.preventDefault(); e.returnValue = ""; } });
+["copy", "cut", "paste", "contextmenu", "dragstart", "drop"].forEach(ev =>
+  document.addEventListener(ev, e => { if (running()) e.preventDefault(); }));
+
+/* ---------- dialóg ---------- */
+function ask(title, text, btns, isWarn) {
+  $("ov-title").textContent = title;
+  $("ov-text").textContent = text;
+  $("overlay").classList.toggle("warn", !!isWarn);
+  const b = $("ov-btns"); b.innerHTML = "";
+  btns.forEach(x => {
+    const el = document.createElement("button");
+    el.textContent = x.t; if (x.ghost) el.className = "ghost";
+    el.addEventListener("click", x.fn); b.appendChild(el);
+  });
+  $("overlay").classList.remove("hidden");
+}
+function closeOverlay() { $("overlay").classList.add("hidden"); }
+
+/* ---------- priebeh ---------- */
+function begin() {
+  const meno = $("meno").value.trim(), trieda = $("trieda").value.trim();
+  if (!meno || !trieda) { $("start-msg").textContent = "Vyplň meno a triedu."; return; }
+  Object.assign(state, { meno, trieda, start: Date.now() });
+  save();
+  showRunning();
+}
+
+function lockNames() {
+  $("meno").value = state.meno; $("trieda").value = state.trieda;
+  $("meno").disabled = $("trieda").disabled = true;
+}
+
+function showRunning() {
+  lockNames();
+  $("intro").classList.add("hidden");
+  $("bar").classList.remove("hidden");
+  $("finish-wrap").classList.remove("hidden");
+  $("quiz").classList.remove("hidden");
+  updateLeaves();
+  render(false);
+  startTimer();
+}
+
+function askFinish() {
+  if (!running()) return;
+  const empty = DATA.questions.filter(q => !state.answers[q.id] || !String(state.answers[q.id]).trim()).length;
+  ask("Odovzdať test?",
+    (empty ? `Nevyplnených otázok: ${empty}. ` : "") + "Po odovzdaní už nebude možné nič zmeniť.",
+    [{ t: "Späť k testu", ghost: true, fn: closeOverlay }, { t: "Odovzdať", fn: () => finish("manual") }]);
+}
+
+function finish(reason) {
+  if (state.done) return;
+  if (away) { state.awayMs += Date.now() - away; away = null; }
+  clearInterval(tick);
+  let score = 0;
+  DATA.questions.forEach(q => { if (check(q, state.answers[q.id])) score++; });
+  Object.assign(state, { done: true, score, end: Date.now(), reason });
+  save();
+  closeOverlay();
+  showResult();
+}
+
+function showResult() {
+  lockNames();
+  $("intro").classList.add("hidden");
+  $("finish-wrap").classList.add("hidden");
+  $("bar").classList.add("hidden");
+
+  const total = DATA.questions.length;
+  $("res-score").textContent = `${state.score} / ${total}`;
+  const mins = Math.min(CONFIG.limitMin, Math.ceil((state.end - state.start) / 60000));
+  $("res-who").textContent = `${state.meno} · ${state.trieda} · ${new Date(state.end).toLocaleString("sk-SK")} · ${mins} min`;
+  $("res-leaves").textContent = state.leaves
+    ? `Opustenie stránky: ${state.leaves}× (spolu ${Math.round(state.awayMs / 1000)} s)`
+    : "Stránku počas testu neopustil";
+  $("res-leaves").classList.toggle("bad", state.leaves > 0);
+  const notes = {
+    manual: "Test je odovzdaný. Výsledok ukáž vyučujúcemu.",
+    time: "Čas vypršal, test sa odovzdal automaticky.",
+    leaves: `Test sa odovzdal automaticky, pretože si stránku opustil ${state.leaves}×.`
+  };
+  $("res-note").textContent = notes[state.reason] || notes.manual;
+  $("result").classList.remove("hidden");
+  $("quiz").classList.remove("hidden");
+  render(true);
+  window.scrollTo(0, 0);
+}
+
+/* ---------- štart ---------- */
+rules();
+$("st-q").textContent = DATA.questions.length;
+$("st-p").textContent = DATA.questions.length;
+$("btn-start").addEventListener("click", begin);
+$("btn-finish").addEventListener("click", askFinish);
+$("btn-finish-top").addEventListener("click", askFinish);
+
+load();
+if (state.done) showResult();
+else if (state.start) {
+  state.leaves++; save();
+  if (CONFIG.maxLeaves && state.leaves >= CONFIG.maxLeaves) finish("leaves");
+  else { showRunning(); warn("Stránka bola obnovená"); }
+}
+</script>
+</body>
+</html>
